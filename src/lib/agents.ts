@@ -61,6 +61,13 @@ export type Agent = {
   path: string;
   /** "hub" = served by the dashboard app itself, "zone" = a separate app. */
   host: "hub" | "zone";
+  /**
+   * Where the header lists it: inside the "AI Agents" menu, or as its own
+   * top-level item (RAG AI). The footer always lists every agent.
+   */
+  navGroup: "agents" | "top";
+  /** Label for a top-level header item. */
+  navLabel?: string;
   palette: AgentPalette;
   seo: { title: string; description: string };
   /** Three agents shown in the "related" strip on this agent's page. */
@@ -77,6 +84,7 @@ export const agents: Agent[] = [
     icon: "lead",
     path: "/ai-lead-qualification/",
     host: "zone",
+    navGroup: "agents",
     palette: {
       accent: "#047857",
       ink: "#064e3b",
@@ -102,6 +110,7 @@ export const agents: Agent[] = [
     icon: "seo",
     path: "/ai-planner",
     host: "zone",
+    navGroup: "agents",
     palette: {
       accent: "#4338ca",
       ink: "#312e81",
@@ -127,6 +136,7 @@ export const agents: Agent[] = [
     icon: "content",
     path: "/ai-content-planner/",
     host: "zone",
+    navGroup: "agents",
     palette: {
       accent: "#be185d",
       ink: "#831843",
@@ -152,6 +162,7 @@ export const agents: Agent[] = [
     icon: "conversion",
     path: "/conversion-friction-analyzer",
     host: "zone",
+    navGroup: "agents",
     palette: {
       accent: "#c2410c",
       ink: "#7c2d12",
@@ -177,6 +188,7 @@ export const agents: Agent[] = [
     icon: "competitor",
     path: "/ai-competitor-comparison/",
     host: "zone",
+    navGroup: "agents",
     palette: {
       accent: "#be123c",
       ink: "#881337",
@@ -202,6 +214,7 @@ export const agents: Agent[] = [
     icon: "booking",
     path: "/ai-booking-agent/",
     host: "zone",
+    navGroup: "agents",
     palette: {
       accent: "#0e7490",
       ink: "#164e63",
@@ -227,6 +240,8 @@ export const agents: Agent[] = [
     icon: "rag",
     path: "/rag-knowledge-assistant/",
     host: "hub",
+    navGroup: "top",
+    navLabel: "RAG AI",
     palette: {
       accent: "#6d28d9",
       ink: "#4c1d95",
@@ -244,6 +259,12 @@ export const agents: Agent[] = [
     related: ["booking-agent", "lead-qualification", "content-planner"],
   },
 ];
+
+/** Agents listed inside the header's "AI Agents" menu. */
+export const menuAgents = agents.filter((a) => a.navGroup === "agents");
+
+/** Agents shown as their own top-level header item (e.g. RAG AI). */
+export const topNavAgents = agents.filter((a) => a.navGroup === "top");
 
 export function getAgent(slug: AgentSlug): Agent {
   const agent = agents.find((a) => a.slug === slug);

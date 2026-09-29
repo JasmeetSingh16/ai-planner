@@ -13,7 +13,11 @@ export const MAIN_SITE_URL = "https://www.jaseir.com/";
 export const CONTACT_URL = "https://www.jaseir.com/contact/";
 export const ABOUT_URL = "https://www.jaseir.com/about/";
 export const SERVICES_URL = "https://www.jaseir.com/services/";
-export const LOGO_URL = `${AI_ORIGIN}/logo.webp`;
+/** Transparent logo for light backgrounds (WebP + PNG fallback). */
+export const LOGO_PATH = "/logo-transparent.webp";
+export const LOGO_PNG_PATH = "/logo-transparent.png";
+export const LOGO_URL = `${AI_ORIGIN}${LOGO_PATH}`;
+export const LOGO_PNG_URL = `${AI_ORIGIN}${LOGO_PNG_PATH}`;
 export const LOGO_LIGHT_URL = `${AI_ORIGIN}/logo-light.webp`;
 
 export const SITE_NAME = "Jaseir AI";
@@ -39,6 +43,12 @@ export function hubHref(zone: SiteZone, path: string, onHome = false): string {
     return path;
   }
   return `${AI_ORIGIN}${path}`;
+}
+
+/** Logo URLs: same-origin inside the hub, absolute from agent apps. */
+export function logoSources(zone: SiteZone) {
+  const base = zone.kind === "hub" ? "" : AI_ORIGIN;
+  return { webp: `${base}${LOGO_PATH}`, png: `${base}${LOGO_PNG_PATH}` };
 }
 
 /** Link to an agent page, relative when it lives in the current app. */

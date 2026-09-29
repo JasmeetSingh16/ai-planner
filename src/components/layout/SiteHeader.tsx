@@ -5,7 +5,8 @@
 /* ------------------------------------------------------------------ */
 /* SITE HEADER — one header for every Jaseir AI page.                  */
 /* Sticky; gains a background + border once the page scrolls.          */
-/* "AI Agents" opens a mega-menu built from lib/agents.ts.             */
+/* "AI Agents" opens a mega-menu built from lib/agents.ts; agents with  */
+/* navGroup "top" (RAG AI) get their own item next to it.              */
 /* SOURCE OF TRUTH: edit in dashboard/, then run                       */
 /* `node scripts/sync-shared.mjs`.                                     */
 /* ------------------------------------------------------------------ */
@@ -14,16 +15,16 @@ import { ArrowRight, ArrowUpRight, ChevronDown, Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import AgentIcon from "../agent/AgentIcon";
-import { agents, agentVars, type AgentSlug } from "../../lib/agents";
+import { agents, agentVars, menuAgents, topNavAgents, type AgentSlug } from "../../lib/agents";
 import {
   ABOUT_URL,
   CONTACT_URL,
   LOGO_LIGHT_URL,
-  LOGO_URL,
   MAIN_SITE_URL,
   SERVICES_URL,
   agentHref,
   hubHref,
+  logoSources,
   type SiteZone,
 } from "../../lib/site";
 
@@ -60,6 +61,8 @@ export default function SiteHeader({ zone }: { zone: SiteZone }) {
   const howHref = hubHref(zone, "/#how-it-works", onHome);
   const workspaceHref = hubHref(zone, "/#agent-workspace", onHome);
   const hubHomeHref = hubHref(zone, "/");
+  const logo = logoSources(zone);
+  const menuActive = menuAgents.some((a) => a.slug === activeSlug);
 
   /* Background + border once the page has scrolled. */
   useEffect(() => {
@@ -156,8 +159,15 @@ export default function SiteHeader({ zone }: { zone: SiteZone }) {
       <div className="jk-header-inner">
         <div className="jk-brand">
           <a href={MAIN_SITE_URL} className="jk-logo">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={dark ? LOGO_LIGHT_URL : LOGO_URL} alt="Jaseir" width={132} height={52} />
+            {dark ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={LOGO_LIGHT_URL} alt="Jaseir" width={132} height={52} />
+            ) : (
+              <picture>
+                <source srcSet={logo.webp} type="image/webp" />
+                <img src={logo.png} alt="Jaseir" width={132} height={52} />
+              </picture>
+            )}
           </a>
           <a href={hubHomeHref} className="jk-brand-tag" aria-label="Jaseir AI home">
             AI
@@ -181,7 +191,7 @@ export default function SiteHeader({ zone }: { zone: SiteZone }) {
             <button
               ref={megaButtonRef}
               type="button"
-              className={`jk-nav-link jk-nav-trigger${activeSlug ? " is-active" : ""}`}
+              className={`jk-nav-link jk-nav-trigger${menuActive ? " is-active" : ""}`}
               aria-expanded={megaOpen}
               aria-controls={megaId}
               onClick={onTriggerClick}
@@ -204,7 +214,7 @@ export default function SiteHeader({ zone }: { zone: SiteZone }) {
               </div>
 
               <ul className="jk-mega-grid">
-                {agents.map((agent) => {
+                {menuAgents.map((agent) => {
                   const current = agent.slug === activeSlug;
                   return (
                     <li key={agent.slug}>
@@ -232,6 +242,22 @@ export default function SiteHeader({ zone }: { zone: SiteZone }) {
               </ul>
             </div>
           </div>
+
+          {topNavAgents.map((agent) => {
+            const current = agent.slug === activeSlug;
+            return (
+              <a
+                key={agent.slug}
+                href={agentHref(zone, agent)}
+                className={`jk-nav-link jk-nav-agent${current ? " is-active" : ""}`}
+                style={agentVars(agent)}
+                aria-current={current ? "page" : undefined}
+              >
+                <span className="jk-dot" aria-hidden="true" />
+                {agent.navLabel ?? agent.shortName}
+              </a>
+            );
+          })}
 
           <a href={howHref} className="jk-nav-link">
             How It Works
@@ -274,8 +300,10 @@ export default function SiteHeader({ zone }: { zone: SiteZone }) {
         onClick={onMobileLinkClick}
       >
         <div className="jk-mobile-top">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={LOGO_URL} alt="" width={116} height={46} />
+          <picture>
+            <source srcSet={logo.webp} type="image/webp" />
+            <img src={logo.png} alt="" width={116} height={46} />
+          </picture>
           <button
             ref={mobileCloseRef}
             type="button"
@@ -290,7 +318,7 @@ export default function SiteHeader({ zone }: { zone: SiteZone }) {
         <div className="jk-mobile-body">
           <p className="jk-eyebrow">AI Agents</p>
           <ul className="jk-mobile-agents">
-            {agents.map((agent) => {
+            {menuAgents.map((agent) => {
               const current = agent.slug === activeSlug;
               return (
                 <li key={agent.slug}>
@@ -312,6 +340,24 @@ export default function SiteHeader({ zone }: { zone: SiteZone }) {
               );
             })}
           </ul>
+
+          {topNavAgents.map((agent) => (
+            <a
+              key={agent.slug}
+              href={agentHref(zone, agent)}
+              className={`jk-mobile-agent jk-mobile-top${agent.slug === activeSlug ? " is-current" : ""}`}
+              style={agentVars(agent)}
+              aria-current={agent.slug === activeSlug ? "page" : undefined}
+            >
+              <span className="jk-agent-badge">
+                <AgentIcon name={agent.icon} size={18} />
+              </span>
+              <span className="jk-mega-copy">
+                <span className="jk-mega-name">{agent.navLabel ?? agent.shortName}</span>
+                <span className="jk-mega-tagline">{agent.tagline}</span>
+              </span>
+            </a>
+          ))}
 
           <ul className="jk-mobile-links">
             <li>
