@@ -47,6 +47,16 @@ function loadLead(): GateLeadInput | null {
   return rememberedLead;
 }
 
+/** "Not you?": forget the visitor so the next report asks again. */
+function forgetLead() {
+  rememberedLead = null;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* storage unavailable — nothing stored */
+  }
+}
+
 function saveLead(lead: GateLeadInput) {
   rememberedLead = lead;
   try {
@@ -342,17 +352,41 @@ export default function ReportGate({
   );
 }
 
-/** Shown after the full report: "Want this built…" + booking button. */
+/** Shown after the full report: "Want this built…" + booking button, and "Not you?". */
 export function ReportCta() {
+  const [email, setEmail] = useState<string | null>(null);
+
+  // Read after mount: the page may be rendered on the server, where there's no storage.
+  useEffect(() => {
+    const lead = loadLead();
+    if (lead) queueMicrotask(() => setEmail(lead.email));
+  }, []);
+
   return (
-    <section className="jk-report-cta" aria-labelledby="jk-report-cta-title">
-      <h3 id="jk-report-cta-title" className="jk-report-cta-title">
-        {gateCopy.ctaTitle}
-      </h3>
-      <a {...bookingLinkProps} className="jk-btn jk-btn--primary jk-btn--lg">
-        {gateCopy.ctaButton}
-        <ArrowUpRight size={18} aria-hidden="true" />
-      </a>
-    </section>
+    <>
+      <section className="jk-report-cta" aria-labelledby="jk-report-cta-title">
+        <h3 id="jk-report-cta-title" className="jk-report-cta-title">
+          {gateCopy.ctaTitle}
+        </h3>
+        <a {...bookingLinkProps} className="jk-btn jk-btn--primary jk-btn--lg">
+          {gateCopy.ctaButton}
+          <ArrowUpRight size={18} aria-hidden="true" />
+        </a>
+      </section>
+      {email && (
+        <p className="jk-report-who">
+          Unlocked as {email} ·{" "}
+          <button
+            type="button"
+            onClick={() => {
+              forgetLead();
+              setEmail(null);
+            }}
+          >
+            Not you?
+          </button>
+        </p>
+      )}
+    </>
   );
 }
