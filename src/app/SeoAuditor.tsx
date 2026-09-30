@@ -13,7 +13,7 @@ import {
 import { FormEvent, useRef, useState } from "react";
 import { EmptyPreview, WorkspaceSection } from "../components/agent/AgentTemplate";
 import { CopyButton, LoadingSteps, ScoreBar, ScoreGauge } from "../components/agent/AgentUi";
-import ReportGate, { ReportCta } from "../components/agent/ReportGate";
+import ReportGate, { GoogleReturn, ReportCta } from "../components/agent/ReportGate";
 import type { ReportGateInfo } from "../lib/lead-gate";
 import { ScoreRadar, VitalTile, rating } from "./SeoCharts";
 import {
@@ -199,6 +199,23 @@ export default function SeoAuditor() {
       <p className="jk-sr" role="status">
         {result?.success && !loading ? "Audit ready." : ""}
       </p>
+
+      {/* Back from "Continue with Google": unlock the saved report. */}
+
+      <GoogleReturn
+
+        agent="seo-planner"
+
+        onFull={(full) => {
+
+          setResult(full as AuditResponse);
+
+          setGate(null);
+
+        }}
+
+      />
+
 
       <div ref={outputRef} className="seo-output">
         {loading ? (

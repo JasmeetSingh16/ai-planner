@@ -36,6 +36,12 @@ export type ReportGateInfo = { token: string | null };
 /** Same-origin endpoint served by the dashboard app. */
 export const AGENT_LEADS_API = process.env.NEXT_PUBLIC_AGENT_LEADS_API || "/api/agent-leads/";
 
+/** Where Google sends "Continue with Google" back to (next to AGENT_LEADS_API). */
+export const GOOGLE_RETURN_PATH = "../google-return/";
+
+/** Cookie holding the agent page to return to after Google sign-in. */
+export const GOOGLE_RETURN_COOKIE = "jk_google_return";
+
 export const gateCopy = {
   title: "Get your full report",
   fields: { name: "Name", email: "Email", website: "Company website" },

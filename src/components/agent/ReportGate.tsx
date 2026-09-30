@@ -19,6 +19,8 @@ import { ArrowRight, ArrowUpRight, LockKeyhole, TriangleAlert } from "lucide-rea
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   AGENT_LEADS_API,
+  GOOGLE_RETURN_COOKIE,
+  GOOGLE_RETURN_PATH,
   gateCopy,
   validateGateLead,
   type GateLeadErrors,
@@ -78,13 +80,16 @@ type UnlockResponse = {
 };
 
 /* ---------------- "Continue with Google" (Google Identity Services) ---------------- */
+/*
+ * Redirect mode, not a popup: the button takes the visitor to Google and
+ * Google posts the sign-in to the dashboard's /api/google-return/, which
+ * sends them back to this page with the ID token in the URL fragment.
+ * Popup blockers can't break it. The locked report is kept in
+ * sessionStorage meanwhile and <GoogleReturn> unlocks it on the way back.
+ */
 
 type GoogleId = {
-  initialize: (config: {
-    client_id: string;
-    callback: (response: { credential: string }) => void;
-    use_fedcm_for_button?: boolean;
-  }) => void;
+  initialize: (config: { client_id: string; ux_mode: "redirect"; login_uri: string }) => void;
   renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
 };
 
@@ -110,14 +115,34 @@ function loadGoogle(): Promise<GoogleId> {
   return gsiScript;
 }
 
+const PENDING_KEY = "jaseir:google-pending";
+
+/** What <GoogleReturn> needs to unlock the report after the round trip to Google. */
+type PendingGoogle = { agent: GatedAgent; token: string | null; input: string; summary: string };
+
+/** Saves the locked report and the page to come back to, just before the visitor may leave for Google. */
+function rememberForGoogle(pending: PendingGoogle) {
+  try {
+    window.sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+  } catch {
+    /* storage unavailable — Google sign-in can't restore the report; the form still works */
+  }
+  const back = window.location.href.split("#")[0];
+  const secure = window.location.protocol === "https:" || window.location.hostname === "localhost";
+  // SameSite=None so the cookie comes along on Google's cross-site POST back.
+  document.cookie = `${GOOGLE_RETURN_COOKIE}=${encodeURIComponent(back)}; path=/; max-age=1800; ${
+    secure ? "SameSite=None; Secure" : "SameSite=Lax"
+  }`;
+}
+
 /** Google's own button. Renders nothing when GOOGLE_CLIENT_ID is empty or Google can't load. */
-function GoogleButton({ onCredential }: { onCredential: (credential: string) => void }) {
+function GoogleButton({ pending }: { pending: PendingGoogle }) {
   const ref = useRef<HTMLDivElement>(null);
-  const callback = useRef(onCredential);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    callback.current = onCredential;
+    if (!GOOGLE_CLIENT_ID) return;
+    rememberForGoogle(pending);
   });
 
   useEffect(() => {
@@ -128,10 +153,8 @@ function GoogleButton({ onCredential }: { onCredential: (credential: string) => 
         if (cancelled || !ref.current) return;
         google.initialize({
           client_id: GOOGLE_CLIENT_ID,
-          callback: ({ credential }) => callback.current(credential),
-          // Google's standard popup. (FedCM mode failed with "Error retrieving
-          // a token" whenever the browser wasn't signed in to Google.)
-          use_fedcm_for_button: false,
+          ux_mode: "redirect",
+          login_uri: new URL(GOOGLE_RETURN_PATH, new URL(AGENT_LEADS_API, window.location.href)).href,
         });
         google.renderButton(ref.current, {
           type: "standard",
@@ -157,6 +180,82 @@ function GoogleButton({ onCredential }: { onCredential: (credential: string) => 
         <span>or</span>
       </p>
     </>
+  );
+}
+
+type ReturnState = "idle" | "unlocking" | "failed";
+
+/**
+ * Put this in each gated agent's workspace. When the visitor comes back from
+ * Google, it unlocks the saved report and hands it to `onFull`.
+ */
+export function GoogleReturn({ agent, onFull }: { agent: GatedAgent; onFull: (full: unknown) => void }) {
+  const [state, setState] = useState<ReturnState>("idle");
+  const onFullRef = useRef(onFull);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    onFullRef.current = onFull;
+  });
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.startsWith("#google-")) return;
+    history.replaceState(null, "", window.location.href.split("#")[0]);
+    const credential = hash.startsWith("#google-credential=") ? hash.slice("#google-credential=".length) : "";
+
+    let pending: PendingGoogle | null = null;
+    try {
+      pending = JSON.parse(window.sessionStorage.getItem(PENDING_KEY) ?? "null") as PendingGoogle | null;
+      window.sessionStorage.removeItem(PENDING_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+    if (!credential || !pending || pending.agent !== agent) return;
+
+    const saved = pending;
+    void Promise.resolve()
+      .then(() => {
+        setState("unlocking");
+        boxRef.current?.scrollIntoView({ block: "center" });
+        return fetch(AGENT_LEADS_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: "",
+            email: "",
+            website: "",
+            fax: "",
+            agent,
+            token: saved.token,
+            input: saved.input,
+            summary: saved.summary,
+            pageUrl: window.location.href,
+            returning: false,
+            googleCredential: credential,
+          }),
+        });
+      })
+      .then((response) => response.json().then((data: UnlockResponse) => (response.ok ? data : { ...data, ok: false })))
+      .catch((): UnlockResponse => ({ ok: false }))
+      .then((data) => {
+        if (data.ok && data.full) {
+          if (data.lead?.email) saveLead(data.lead);
+          setState("idle");
+          onFullRef.current(data.full);
+        } else {
+          setState("failed");
+        }
+      });
+  }, [agent]);
+
+  if (state === "idle") return <div ref={boxRef} />;
+  return (
+    <div ref={boxRef} className="jk-card jk-card-pad jk-google-return" role="status">
+      {state === "unlocking"
+        ? gateCopy.unlocking
+        : "Google sign-in didn't go through. Please run the agent again and use the form."}
+    </div>
   );
 }
 
@@ -257,14 +356,6 @@ export default function ReportGate({
     void request(lead, false).then((data) => apply(lead, data));
   }
 
-  function onGoogle(credential: string) {
-    setStatus("sending");
-    setMessage("");
-    const lead = { ...form, website: form.website.trim() };
-    void request(lead, false, credential).then((data) =>
-      apply(lead, data.reason === "google" ? { ...data, reason: undefined } : data),
-    );
-  }
 
   const field = (name: keyof GateLeadInput, type: string, autoComplete: string, optional = false) => (
     <div className="jk-field">
@@ -314,7 +405,7 @@ export default function ReportGate({
             </p>
           ) : (
             <form onSubmit={onSubmit} noValidate className="jk-gate-form">
-              <GoogleButton onCredential={onGoogle} />
+              <GoogleButton pending={{ agent, token: gate.token, input, summary }} />
               {field("name", "text", "name")}
               {field("email", "email", "email")}
               {field("website", "text", "url", true)}
