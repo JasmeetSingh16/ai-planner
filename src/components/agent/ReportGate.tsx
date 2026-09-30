@@ -129,9 +129,9 @@ function GoogleButton({ onCredential }: { onCredential: (credential: string) => 
         google.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: ({ credential }) => callback.current(credential),
-          // Chrome's built-in account chooser (FedCM) instead of a popup window,
-          // so popup blockers don't stop the sign-in.
-          use_fedcm_for_button: true,
+          // Google's standard popup. (FedCM mode failed with "Error retrieving
+          // a token" whenever the browser wasn't signed in to Google.)
+          use_fedcm_for_button: false,
         });
         google.renderButton(ref.current, {
           type: "standard",
