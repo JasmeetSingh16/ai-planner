@@ -6,28 +6,21 @@
 
 import type { AuditData, AuditResponse } from "./seo-data";
 
-/** Critical issues shown in the preview. */
-export const PREVIEW_ISSUES = 3;
-
-/** Scores, summary and Core Web Vitals, plus the first three critical issues. */
+/** Only the site's name and URL — the whole audit is locked. */
 export function previewOf<T extends AuditResponse>(report: T): T {
   if (!report.audit) return report;
   const audit: AuditData = {
     ...report.audit,
-    criticalIssues: (report.audit.criticalIssues ?? []).slice(0, PREVIEW_ISSUES),
+    overallScore: 0,
+    scores: { seo: 0, ux: 0, accessibility: 0, performance: 0, mobile: 0, conversion: 0 },
+    summary: "",
+    criticalIssues: [],
     recommendations: [],
     improvementPlan: [],
+    pageSpeed: undefined,
+    disclaimer: undefined,
   };
   return { ...report, audit };
-}
-
-/** The issues, recommendations and 30-day plan the preview leaves out. */
-export function lockedOf(audit: AuditData): Pick<AuditData, "criticalIssues" | "recommendations" | "improvementPlan"> {
-  return {
-    criticalIssues: (audit.criticalIssues ?? []).slice(PREVIEW_ISSUES),
-    recommendations: audit.recommendations ?? [],
-    improvementPlan: audit.improvementPlan ?? [],
-  };
 }
 
 export function summaryOf(report: AuditResponse): string {

@@ -26,7 +26,7 @@ import {
   type Recommendation,
   type WebsiteData,
 } from "./seo-data";
-import { PREVIEW_ISSUES, lockedOf, previewOf, summaryOf } from "./report-gate";
+import { previewOf, summaryOf } from "./report-gate";
 
 const LOADING_STEPS = [
   "Fetching the live page",
@@ -225,7 +225,7 @@ export default function SeoAuditor() {
                 }}
               >
                 {/* Sealed audits aren't in the page yet: blur the example's plan instead. */}
-                <LockedAudit {...lockedOf(gate.token ? exampleAudit.audit : result.audit)} />
+                <SeoReport audit={gate.token ? exampleAudit.audit : result.audit} part="locked" />
               </ReportGate>
             ) : (
               <ReportCta />
@@ -264,8 +264,8 @@ function planAsText(audit: AuditData, website?: WebsiteData) {
 }
 
 /**
- * part: "all" = the full audit; "preview" = before the email form (scores,
- * vitals, first critical issues). The rest is <LockedAudit>.
+ * part: "all" = the full audit; "preview" = before the email form (just
+ * the site's name and URL); "locked" = everything else, blurred behind the form.
  */
 function SeoReport({
   audit,
@@ -276,103 +276,104 @@ function SeoReport({
   audit: AuditData;
   website?: WebsiteData;
   onReset?: () => void;
-  part?: "all" | "preview";
+  part?: "all" | "preview" | "locked";
 }) {
   const strategies = [audit.pageSpeed?.mobile, audit.pageSpeed?.desktop].filter(Boolean) as PageSpeedStrategy[];
 
   return (
     <article className="seo-report" aria-label="Website audit">
-      <header className="seo-report-head">
-        <div className="min-w-0">
-          <p className="jk-eyebrow">Website audit</p>
-          <h3 className="seo-report-title">{website?.title || "Website analysis"}</h3>
-          <p className="mt-1 break-all text-sm text-[var(--jk-muted)]">{website?.url}</p>
-        </div>
-        {onReset && (
-          <div className="flex flex-wrap gap-2">
-            {part === "all" && <CopyButton text={planAsText(audit, website)} label="Copy plan" />}
-            <button type="button" className="jk-copy" onClick={onReset}>
-              <RotateCcw size={15} aria-hidden="true" />
-              Audit another site
-            </button>
+      {part !== "locked" && (
+        <header className="seo-report-head">
+          <div className="min-w-0">
+            <p className="jk-eyebrow">Website audit</p>
+            <h3 className="seo-report-title">{website?.title || "Website analysis"}</h3>
+            <p className="mt-1 break-all text-sm text-[var(--jk-muted)]">{website?.url}</p>
           </div>
-        )}
-      </header>
-
-      {/* Overall + radar */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_1.35fr]">
-        <section className="jk-card jk-card-pad flex flex-col" aria-label="Overall score">
-          <p className="jk-label-sm">Overall score</p>
-          <div className="mt-4 flex flex-col items-center gap-5">
-            <ScoreGauge value={audit.overallScore} label={getScoreLabel(audit.overallScore)} size={180} />
-            <p className="text-[15px] leading-7 text-[var(--jk-body)]">
-              {audit.summary || "No summary was provided for this audit."}
-            </p>
-          </div>
-        </section>
-
-        <section className="jk-card jk-card-pad" aria-label="Scores by category">
-          <p className="jk-label-sm">Scores by category</p>
-          <div className="mt-2 grid items-center gap-4 sm:grid-cols-[auto_1fr]">
-            <div className="mx-auto w-full max-w-[280px]">
-              <ScoreRadar scores={audit.scores} size={280} />
+          {onReset && (
+            <div className="flex flex-wrap gap-2">
+              {part === "all" && <CopyButton text={planAsText(audit, website)} label="Copy plan" />}
+              <button type="button" className="jk-copy" onClick={onReset}>
+                <RotateCcw size={15} aria-hidden="true" />
+                Audit another site
+              </button>
             </div>
-            <div className="grid gap-4">
-              {categoryLabels.map(({ key, label }) => (
-                <ScoreBar key={key} label={label} value={audit.scores[key]} max={100} />
-              ))}
-            </div>
-          </div>
-        </section>
-      </div>
+          )}
+        </header>
+      )}
 
-      {/* Core Web Vitals */}
-      {audit.pageSpeed?.available && strategies.length > 0 && (
-        <section className="jk-card jk-card-pad mt-4" aria-labelledby="seo-vitals">
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <p className="jk-label-sm">Google PageSpeed Insights</p>
-              <h4 id="seo-vitals" className="mt-1 text-xl font-bold tracking-tight text-[var(--jk-ink)]">
-                Core Web Vitals
-              </h4>
-            </div>
-            {audit.pageSpeed.mobile?.fieldCategory && (
-              <p className="jk-hint">
-                Chrome UX field rating: <strong>{audit.pageSpeed.mobile.fieldCategory}</strong>
-              </p>
-            )}
-          </div>
+      {part !== "preview" && (
+        <>
+          {/* Overall + radar */}
+          <div className="grid gap-4 lg:grid-cols-[1fr_1.35fr]">
+            <section className="jk-card jk-card-pad flex flex-col" aria-label="Overall score">
+              <p className="jk-label-sm">Overall score</p>
+              <div className="mt-4 flex flex-col items-center gap-5">
+                <ScoreGauge value={audit.overallScore} label={getScoreLabel(audit.overallScore)} size={180} />
+                <p className="text-[15px] leading-7 text-[var(--jk-body)]">
+                  {audit.summary || "No summary was provided for this audit."}
+                </p>
+              </div>
+            </section>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            {strategies.map((s) => (
-              <div key={s.strategy}>
-                <div className="mb-3 flex items-center gap-2 text-[var(--jk-ink)]">
-                  {s.strategy === "mobile" ? (
-                    <Smartphone size={17} aria-hidden="true" />
-                  ) : (
-                    <Monitor size={17} aria-hidden="true" />
-                  )}
-                  <span className="font-semibold capitalize">{s.strategy}</span>
-                  <span className={`seo-perf seo-perf--${rating(s.performance).tone}`}>
-                    Performance {s.performance ?? "—"}
-                  </span>
+            <section className="jk-card jk-card-pad" aria-label="Scores by category">
+              <p className="jk-label-sm">Scores by category</p>
+              <div className="mt-2 grid items-center gap-4 sm:grid-cols-[auto_1fr]">
+                <div className="mx-auto w-full max-w-[280px]">
+                  <ScoreRadar scores={audit.scores} size={280} />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {s.vitals.slice(0, 4).map((v) => (
-                    <VitalTile key={`${s.strategy}-${v.id}`} vital={v} />
+                <div className="grid gap-4">
+                  {categoryLabels.map(({ key, label }) => (
+                    <ScoreBar key={key} label={label} value={audit.scores[key]} max={100} />
                   ))}
                 </div>
               </div>
-            ))}
+            </section>
           </div>
-        </section>
-      )}
 
-      {/* Critical issues */}
-      <CriticalIssues issues={audit.criticalIssues} />
+          {/* Core Web Vitals */}
+          {audit.pageSpeed?.available && strategies.length > 0 && (
+            <section className="jk-card jk-card-pad mt-4" aria-labelledby="seo-vitals">
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <p className="jk-label-sm">Google PageSpeed Insights</p>
+                  <h4 id="seo-vitals" className="mt-1 text-xl font-bold tracking-tight text-[var(--jk-ink)]">
+                    Core Web Vitals
+                  </h4>
+                </div>
+                {audit.pageSpeed.mobile?.fieldCategory && (
+                  <p className="jk-hint">
+                    Chrome UX field rating: <strong>{audit.pageSpeed.mobile.fieldCategory}</strong>
+                  </p>
+                )}
+              </div>
 
-      {part === "all" && (
-        <>
+              <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                {strategies.map((s) => (
+                  <div key={s.strategy}>
+                    <div className="mb-3 flex items-center gap-2 text-[var(--jk-ink)]">
+                      {s.strategy === "mobile" ? (
+                        <Smartphone size={17} aria-hidden="true" />
+                      ) : (
+                        <Monitor size={17} aria-hidden="true" />
+                      )}
+                      <span className="font-semibold capitalize">{s.strategy}</span>
+                      <span className={`seo-perf seo-perf--${rating(s.performance).tone}`}>
+                        Performance {s.performance ?? "—"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {s.vitals.slice(0, 4).map((v) => (
+                        <VitalTile key={`${s.strategy}-${v.id}`} vital={v} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Critical issues */}
+          <CriticalIssues issues={audit.criticalIssues} />
           <Recommendations recs={audit.recommendations} />
           <ImprovementPlan weeks={audit.improvementPlan} />
           <p className="jk-fineprint mx-auto mt-6 max-w-3xl text-center">
@@ -385,21 +386,17 @@ function SeoReport({
   );
 }
 
-/** `offset`: numbering continues after the preview's issues. */
-function CriticalIssues({ issues, offset = 0 }: { issues: AuditData["criticalIssues"]; offset?: number }) {
+function CriticalIssues({ issues }: { issues: AuditData["criticalIssues"] }) {
   return (
-    <section className="jk-card jk-card-pad mt-4" aria-labelledby={offset ? "seo-issues-more" : "seo-issues"}>
-      <h4
-        id={offset ? "seo-issues-more" : "seo-issues"}
-        className="text-xl font-bold tracking-tight text-[var(--jk-ink)]"
-      >
-        {offset ? "More issues to fix" : "What needs attention first"}
+    <section className="jk-card jk-card-pad mt-4" aria-labelledby="seo-issues">
+      <h4 id="seo-issues" className="text-xl font-bold tracking-tight text-[var(--jk-ink)]">
+        What needs attention first
       </h4>
       {issues?.length ? (
         <ol className="seo-issues">
           {issues.map((issue, index) => (
             <li key={`${issue.title}-${index}`} className="seo-issue">
-              <span className="seo-issue-num">{String(offset + index + 1).padStart(2, "0")}</span>
+              <span className="seo-issue-num">{String(index + 1).padStart(2, "0")}</span>
               <div>
                 <p className="font-semibold text-[var(--jk-ink)]">{issue.title}</p>
                 <p className="mt-1 text-[14.5px] leading-6 text-[var(--jk-body)]">{issue.description}</p>
@@ -492,20 +489,5 @@ function ImprovementPlan({ weeks }: { weeks: AuditData["improvementPlan"] }) {
         <p className="mt-4 text-sm text-[var(--jk-muted)]">No improvement roadmap was returned.</p>
       )}
     </section>
-  );
-}
-
-/** Everything after the preview (shown blurred behind the email form). */
-function LockedAudit({
-  criticalIssues,
-  recommendations,
-  improvementPlan,
-}: Pick<AuditData, "criticalIssues" | "recommendations" | "improvementPlan">) {
-  return (
-    <div>
-      {criticalIssues.length > 0 && <CriticalIssues issues={criticalIssues} offset={PREVIEW_ISSUES} />}
-      <Recommendations recs={recommendations} />
-      <ImprovementPlan weeks={improvementPlan} />
-    </div>
   );
 }
