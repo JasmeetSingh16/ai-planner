@@ -15,10 +15,20 @@ export const CONTACT_URL = "https://www.jaseir.com/contact/";
 /**
  * Where every "book a call" call to action goes (header "Get Started",
  * footer band, agent heroes, RAG pricing and demo buttons, report CTAs).
- * Change it here, then run `node scripts/sync-shared.mjs`.
+ * Set BOOKING_LINK below, then run `node scripts/sync-shared.mjs`.
  * The "Contact" nav item keeps pointing to CONTACT_URL.
  */
-export const BOOKING_URL = "YOUR_BOOKING_LINK";
+const BOOKING_LINK = "YOUR_BOOKING_LINK";
+
+/** Falls back to the contact page until BOOKING_LINK is a real URL, so buttons never 404. */
+export const BOOKING_URL = /^https?:\/\//.test(BOOKING_LINK) ? BOOKING_LINK : CONTACT_URL;
+
+/**
+ * Google OAuth client ID for "Continue with Google" on the report form
+ * (Google Cloud Console → APIs & Services → Credentials → OAuth client ID,
+ * type "Web application"). It's public, not a secret. Empty = button hidden.
+ */
+export const GOOGLE_CLIENT_ID = "";
 
 /** Props for a link to BOOKING_URL — always opens in a new tab. */
 export const bookingLinkProps = { href: BOOKING_URL, target: "_blank", rel: "noopener noreferrer" } as const;

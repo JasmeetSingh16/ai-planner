@@ -26,7 +26,7 @@ import {
   type GatedAgent,
   type ReportGateInfo,
 } from "../../lib/lead-gate";
-import { bookingLinkProps, hubHref } from "../../lib/site";
+import { GOOGLE_CLIENT_ID, bookingLinkProps, hubHref } from "../../lib/site";
 
 const STORAGE_KEY = "jaseir:report-lead";
 
@@ -58,7 +58,87 @@ function saveLead(lead: GateLeadInput) {
 
 type Status = "idle" | "auto" | "sending";
 
-type UnlockResponse = { ok?: boolean; full?: unknown; errors?: GateLeadErrors; reason?: string };
+type UnlockResponse = {
+  ok?: boolean;
+  full?: unknown;
+  errors?: GateLeadErrors;
+  reason?: string;
+  /** The saved name/email (for Google sign-in, the verified ones). */
+  lead?: GateLeadInput;
+};
+
+/* ---------------- "Continue with Google" (Google Identity Services) ---------------- */
+
+type GoogleId = {
+  initialize: (config: { client_id: string; callback: (response: { credential: string }) => void }) => void;
+  renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
+};
+
+let gsiScript: Promise<GoogleId> | null = null;
+
+/** Loads Google's sign-in script once per page. */
+function loadGoogle(): Promise<GoogleId> {
+  gsiScript ??= new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.onload = () => {
+      const id = (window as unknown as { google?: { accounts?: { id?: GoogleId } } }).google?.accounts?.id;
+      if (id) resolve(id);
+      else reject(new Error("Google sign-in unavailable"));
+    };
+    script.onerror = () => {
+      gsiScript = null;
+      reject(new Error("Google sign-in script failed to load"));
+    };
+    document.head.appendChild(script);
+  });
+  return gsiScript;
+}
+
+/** Google's own button. Renders nothing when GOOGLE_CLIENT_ID is empty or Google can't load. */
+function GoogleButton({ onCredential }: { onCredential: (credential: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const callback = useRef(onCredential);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    callback.current = onCredential;
+  });
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+    let cancelled = false;
+    loadGoogle().then(
+      (google) => {
+        if (cancelled || !ref.current) return;
+        google.initialize({ client_id: GOOGLE_CLIENT_ID, callback: ({ credential }) => callback.current(credential) });
+        google.renderButton(ref.current, {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          text: "continue_with",
+          shape: "rectangular",
+          width: Math.min(400, Math.max(200, ref.current.offsetWidth)),
+        });
+      },
+      () => !cancelled && setFailed(true),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!GOOGLE_CLIENT_ID || failed) return null;
+  return (
+    <>
+      <div ref={ref} className="jk-gate-google" />
+      <p className="jk-gate-or">
+        <span>or</span>
+      </p>
+    </>
+  );
+}
 
 export default function ReportGate({
   agent,
@@ -89,7 +169,7 @@ export default function ReportGate({
   const id = useId();
 
   /** Posts the lead. No state changes here — see apply(). */
-  async function request(lead: GateLeadInput, returning: boolean): Promise<UnlockResponse> {
+  async function request(lead: GateLeadInput, returning: boolean, googleCredential?: string): Promise<UnlockResponse> {
     try {
       const response = await fetch(AGENT_LEADS_API, {
         method: "POST",
@@ -103,6 +183,7 @@ export default function ReportGate({
           summary,
           pageUrl: window.location.href,
           returning,
+          googleCredential,
         }),
       });
       const data = (await response.json().catch(() => ({}))) as UnlockResponse;
@@ -114,7 +195,7 @@ export default function ReportGate({
 
   function apply(lead: GateLeadInput, data: UnlockResponse) {
     if (data.ok) {
-      saveLead(lead);
+      saveLead(data.lead?.email ? data.lead : lead);
       onUnlock(data.full ?? null);
       return;
     }
@@ -154,6 +235,15 @@ export default function ReportGate({
     setStatus("sending");
     setMessage("");
     void request(lead, false).then((data) => apply(lead, data));
+  }
+
+  function onGoogle(credential: string) {
+    setStatus("sending");
+    setMessage("");
+    const lead = { ...form, website: form.website.trim() };
+    void request(lead, false, credential).then((data) =>
+      apply(lead, data.reason === "google" ? { ...data, reason: undefined } : data),
+    );
   }
 
   const field = (name: keyof GateLeadInput, type: string, autoComplete: string, optional = false) => (
@@ -204,6 +294,7 @@ export default function ReportGate({
             </p>
           ) : (
             <form onSubmit={onSubmit} noValidate className="jk-gate-form">
+              <GoogleButton onCredential={onGoogle} />
               {field("name", "text", "name")}
               {field("email", "email", "email")}
               {field("website", "text", "url", true)}
