@@ -28,7 +28,7 @@ export const BOOKING_URL = /^https?:\/\//.test(BOOKING_LINK) ? BOOKING_LINK : CO
  * (Google Cloud Console → APIs & Services → Credentials → OAuth client ID,
  * type "Web application"). It's public, not a secret. Empty = button hidden.
  */
-export const GOOGLE_CLIENT_ID = "";
+export const GOOGLE_CLIENT_ID = "823499604328-lp5tgn4bcvluqd80rak0j2hi8ouvnghu.apps.googleusercontent.com";
 
 /** Props for a link to BOOKING_URL — always opens in a new tab. */
 export const bookingLinkProps = { href: BOOKING_URL, target: "_blank", rel: "noopener noreferrer" } as const;
