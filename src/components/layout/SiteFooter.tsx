@@ -11,10 +11,10 @@ import { ArrowRight } from "lucide-react";
 import CurrentYear from "./CurrentYear";
 import { agents, agentVars, getAgent } from "../../lib/agents";
 import {
-  CONTACT_URL,
   LOGO_LIGHT_URL,
   MAIN_SITE_URL,
   agentHref,
+  bookingLinkProps,
   companyLinks,
   hubHref,
   serviceLinks,
@@ -48,7 +48,7 @@ export default function SiteFooter({ zone, cta = DEFAULT_CTA }: { zone: SiteZone
             </h2>
             <p className="jk-cta-band-text">{cta.text}</p>
           </div>
-          <a href={CONTACT_URL} className="jk-cta-band-button">
+          <a {...bookingLinkProps} className="jk-cta-band-button">
             Book a free consultation
             <ArrowRight size={18} aria-hidden="true" />
           </a>

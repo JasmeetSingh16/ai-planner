@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { gateReport } from "../../../lib/report-gate";
+import { previewOf, summaryOf } from "../../report-gate";
 import { z } from "zod";
 
 import { groq } from "@/lib/groq";
@@ -1646,7 +1648,7 @@ Requirements:
       ? "Performance scores use Google PageSpeed Insights Lighthouse lab data. SEO, UX, accessibility and conversion scores come from HTML analysis of the page. Field data appears only when Chrome UX Report metrics are available for the URL."
       : "Performance and mobile scores are heuristic estimates based on available website signals because PageSpeed Insights data could not be retrieved. This audit does not represent a Lighthouse test unless PageSpeed data is present.";
 
-    return NextResponse.json({
+    const report = {
       success: true,
 
       website: {
@@ -1745,7 +1747,18 @@ Requirements:
 
         disclaimer,
       },
-    });
+    };
+
+    // Preview + sealed full audit (see lib/report-gate.ts).
+    return NextResponse.json(
+      gateReport({
+        agent: "seo-planner",
+        input: website.url,
+        summary: summaryOf(report),
+        full: report,
+        preview: previewOf(report),
+      })
+    );
   } catch (error) {
     console.error(
       "Website audit error:",

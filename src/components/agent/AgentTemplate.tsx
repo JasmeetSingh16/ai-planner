@@ -12,7 +12,7 @@ import { ArrowRight, ArrowUpRight, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import AgentIcon from "./AgentIcon";
 import { agentVars, getAgent, getRelatedAgents, type AgentSlug } from "../../lib/agents";
-import { CONTACT_URL, agentHref, type SiteZone } from "../../lib/site";
+import { agentHref, bookingLinkProps, type SiteZone } from "../../lib/site";
 
 export const WORKSPACE_ID = "workspace";
 
@@ -73,9 +73,7 @@ export function AgentHero({
               Try it now
               <ArrowRight size={18} aria-hidden="true" />
             </a>
-            <a href={CONTACT_URL} className="jk-btn jk-btn--ghost jk-btn--lg">
-              Get this for your business
-            </a>
+            <BookingButton />
           </div>
 
           <ul className="jk-chips" aria-label="Highlights">
@@ -91,6 +89,15 @@ export function AgentHero({
         {preview && <div className="jk-hero-preview">{preview}</div>}
       </div>
     </section>
+  );
+}
+
+/** The hero's "Get this for your business" link to the booking page. */
+export function BookingButton() {
+  return (
+    <a {...bookingLinkProps} className="jk-btn jk-btn--ghost jk-btn--lg">
+      Get this for your business
+    </a>
   );
 }
 

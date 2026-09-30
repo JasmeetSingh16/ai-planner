@@ -11,6 +11,17 @@ import type { Agent, AgentSlug } from "./agents";
 export const AI_ORIGIN = "https://ai.jaseir.com";
 export const MAIN_SITE_URL = "https://www.jaseir.com/";
 export const CONTACT_URL = "https://www.jaseir.com/contact/";
+
+/**
+ * Where every "book a call" call to action goes (header "Get Started",
+ * footer band, agent heroes, RAG pricing and demo buttons, report CTAs).
+ * Change it here, then run `node scripts/sync-shared.mjs`.
+ * The "Contact" nav item keeps pointing to CONTACT_URL.
+ */
+export const BOOKING_URL = "YOUR_BOOKING_LINK";
+
+/** Props for a link to BOOKING_URL — always opens in a new tab. */
+export const bookingLinkProps = { href: BOOKING_URL, target: "_blank", rel: "noopener noreferrer" } as const;
 export const ABOUT_URL = "https://www.jaseir.com/about/";
 export const SERVICES_URL = "https://www.jaseir.com/services/";
 /** Transparent logo for light backgrounds (WebP + PNG fallback). */
@@ -21,8 +32,6 @@ export const LOGO_PNG_URL = `${AI_ORIGIN}${LOGO_PNG_PATH}`;
 export const LOGO_LIGHT_URL = `${AI_ORIGIN}/logo-light.webp`;
 
 export const SITE_NAME = "Jaseir AI";
-export const SITE_DESCRIPTION =
-  "Practical AI agents from Jaseir Technologies — lead scoring, SEO planning, content strategy, conversion audits, competitor research, booking and RAG assistants you can try right now.";
 
 /**
  * Which app is rendering the header/footer.

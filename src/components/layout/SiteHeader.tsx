@@ -23,6 +23,7 @@ import {
   MAIN_SITE_URL,
   SERVICES_URL,
   agentHref,
+  bookingLinkProps,
   hubHref,
   logoSources,
   type SiteZone,
@@ -271,7 +272,7 @@ export default function SiteHeader({ zone }: { zone: SiteZone }) {
         </nav>
 
         <div className="jk-header-actions">
-          <a href={CONTACT_URL} className="jk-cta">
+          <a {...bookingLinkProps} className="jk-cta">
             Get Started
             <ArrowRight size={16} aria-hidden="true" />
           </a>
@@ -379,7 +380,7 @@ export default function SiteHeader({ zone }: { zone: SiteZone }) {
             </li>
           </ul>
 
-          <a href={CONTACT_URL} className="jk-cta jk-cta--block">
+          <a {...bookingLinkProps} className="jk-cta jk-cta--block">
             Get Started
             <ArrowRight size={16} aria-hidden="true" />
           </a>

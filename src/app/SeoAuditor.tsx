@@ -13,6 +13,8 @@ import {
 import { FormEvent, useRef, useState } from "react";
 import { EmptyPreview, WorkspaceSection } from "../components/agent/AgentTemplate";
 import { CopyButton, LoadingSteps, ScoreBar, ScoreGauge } from "../components/agent/AgentUi";
+import ReportGate, { ReportCta } from "../components/agent/ReportGate";
+import type { ReportGateInfo } from "../lib/lead-gate";
 import { ScoreRadar, VitalTile, rating } from "./SeoCharts";
 import {
   categoryLabels,
@@ -24,6 +26,7 @@ import {
   type Recommendation,
   type WebsiteData,
 } from "./seo-data";
+import { PREVIEW_ISSUES, lockedOf, previewOf, summaryOf } from "./report-gate";
 
 const LOADING_STEPS = [
   "Fetching the live page",
@@ -45,6 +48,8 @@ export default function SeoAuditor() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AuditResponse | null>(null);
+  // Set while the full audit is locked behind the email form.
+  const [gate, setGate] = useState<ReportGateInfo | null>(null);
   const [error, setError] = useState("");
   const [sampleIndex, setSampleIndex] = useState(-1);
 
@@ -64,6 +69,7 @@ export default function SeoAuditor() {
 
     setError("");
     setResult(null);
+    setGate(null);
 
     let formattedUrl = url.trim();
 
@@ -99,13 +105,14 @@ export default function SeoAuditor() {
         }),
       });
 
-      const data: AuditResponse = await response.json();
+      const { gate: gateInfo, ...data } = (await response.json()) as AuditResponse & { gate?: ReportGateInfo | null };
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || "Unable to analyze this website.");
       }
 
       setResult(data);
+      setGate(gateInfo ?? null);
     } catch (err) {
       console.error("Audit request error:", err);
 
@@ -118,6 +125,7 @@ export default function SeoAuditor() {
 
   function handleNewAudit() {
     setResult(null);
+    setGate(null);
     setError("");
     workspaceRef.current?.scrollIntoView({ block: "center" });
     inputRef.current?.focus({ preventScroll: true });
@@ -198,7 +206,31 @@ export default function SeoAuditor() {
             <LoadingSteps steps={LOADING_STEPS} interval={7000} />
           </div>
         ) : result?.success && result.audit ? (
-          <SeoReport audit={result.audit} website={result.website} onReset={handleNewAudit} />
+          <>
+            <SeoReport
+              audit={gate ? previewOf(result).audit! : result.audit}
+              website={result.website}
+              onReset={handleNewAudit}
+              part={gate ? "preview" : "all"}
+            />
+            {gate ? (
+              <ReportGate
+                agent="seo-planner"
+                gate={gate}
+                input={result.website?.url ?? url}
+                summary={summaryOf(result)}
+                onUnlock={(full) => {
+                  if (full) setResult(full as AuditResponse);
+                  setGate(null);
+                }}
+              >
+                {/* Sealed audits aren't in the page yet: blur the example's plan instead. */}
+                <LockedAudit {...lockedOf(gate.token ? exampleAudit.audit : result.audit)} />
+              </ReportGate>
+            ) : (
+              <ReportCta />
+            )}
+          </>
         ) : (
           <EmptyPreview
             title="Your audit appears here"
@@ -231,14 +263,20 @@ function planAsText(audit: AuditData, website?: WebsiteData) {
   ].join("\n");
 }
 
+/**
+ * part: "all" = the full audit; "preview" = before the email form (scores,
+ * vitals, first critical issues). The rest is <LockedAudit>.
+ */
 function SeoReport({
   audit,
   website,
   onReset,
+  part = "all",
 }: {
   audit: AuditData;
   website?: WebsiteData;
   onReset?: () => void;
+  part?: "all" | "preview";
 }) {
   const strategies = [audit.pageSpeed?.mobile, audit.pageSpeed?.desktop].filter(Boolean) as PageSpeedStrategy[];
 
@@ -252,7 +290,7 @@ function SeoReport({
         </div>
         {onReset && (
           <div className="flex flex-wrap gap-2">
-            <CopyButton text={planAsText(audit, website)} label="Copy plan" />
+            {part === "all" && <CopyButton text={planAsText(audit, website)} label="Copy plan" />}
             <button type="button" className="jk-copy" onClick={onReset}>
               <RotateCcw size={15} aria-hidden="true" />
               Audit another site
@@ -331,106 +369,143 @@ function SeoReport({
       )}
 
       {/* Critical issues */}
-      <section className="jk-card jk-card-pad mt-4" aria-labelledby="seo-issues">
-        <h4 id="seo-issues" className="text-xl font-bold tracking-tight text-[var(--jk-ink)]">
-          What needs attention first
-        </h4>
-        {audit.criticalIssues?.length ? (
-          <ol className="seo-issues">
-            {audit.criticalIssues.map((issue, index) => (
-              <li key={`${issue.title}-${index}`} className="seo-issue">
-                <span className="seo-issue-num">{String(index + 1).padStart(2, "0")}</span>
-                <div>
-                  <p className="font-semibold text-[var(--jk-ink)]">{issue.title}</p>
-                  <p className="mt-1 text-[14.5px] leading-6 text-[var(--jk-body)]">{issue.description}</p>
-                  {issue.impact && (
-                    <p className="mt-2 text-[13.5px] leading-6 text-[var(--jk-muted)]">
-                      <strong className="text-[var(--jk-body)]">Impact:</strong> {issue.impact}
-                    </p>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className="mt-4 text-sm text-[var(--jk-muted)]">No critical issues were returned by the AI.</p>
-        )}
-      </section>
+      <CriticalIssues issues={audit.criticalIssues} />
 
-      {/* Recommendations by priority */}
-      <section className="mt-4" aria-labelledby="seo-recs">
-        <h4 id="seo-recs" className="mb-3 text-xl font-bold tracking-tight text-[var(--jk-ink)]">
-          Recommendations by priority
-        </h4>
-        {audit.recommendations?.length ? (
-          <div className="grid gap-4 lg:grid-cols-3">
-            {(["High", "Medium", "Low"] as Recommendation["priority"][]).map((priority) => {
-              const items = audit.recommendations.filter((r) => r.priority === priority);
-              return (
-                <div key={priority} className={`seo-lane seo-lane--${priority.toLowerCase()}`}>
-                  <p className="seo-lane-head">
-                    {priority} priority <span>{items.length}</span>
+      {part === "all" && (
+        <>
+          <Recommendations recs={audit.recommendations} />
+          <ImprovementPlan weeks={audit.improvementPlan} />
+          <p className="jk-fineprint mx-auto mt-6 max-w-3xl text-center">
+            {audit.disclaimer ||
+              "SEO, UX, accessibility and conversion scores come from HTML analysis. Performance uses PageSpeed Insights when available."}
+          </p>
+        </>
+      )}
+    </article>
+  );
+}
+
+/** `offset`: numbering continues after the preview's issues. */
+function CriticalIssues({ issues, offset = 0 }: { issues: AuditData["criticalIssues"]; offset?: number }) {
+  return (
+    <section className="jk-card jk-card-pad mt-4" aria-labelledby={offset ? "seo-issues-more" : "seo-issues"}>
+      <h4
+        id={offset ? "seo-issues-more" : "seo-issues"}
+        className="text-xl font-bold tracking-tight text-[var(--jk-ink)]"
+      >
+        {offset ? "More issues to fix" : "What needs attention first"}
+      </h4>
+      {issues?.length ? (
+        <ol className="seo-issues">
+          {issues.map((issue, index) => (
+            <li key={`${issue.title}-${index}`} className="seo-issue">
+              <span className="seo-issue-num">{String(offset + index + 1).padStart(2, "0")}</span>
+              <div>
+                <p className="font-semibold text-[var(--jk-ink)]">{issue.title}</p>
+                <p className="mt-1 text-[14.5px] leading-6 text-[var(--jk-body)]">{issue.description}</p>
+                {issue.impact && (
+                  <p className="mt-2 text-[13.5px] leading-6 text-[var(--jk-muted)]">
+                    <strong className="text-[var(--jk-body)]">Impact:</strong> {issue.impact}
                   </p>
-                  {items.length ? (
-                    <ul className="grid gap-2">
-                      {items.map((r, i) => (
-                        <li key={`${r.title}-${i}`} className="seo-rec">
-                          <p className="font-semibold text-[var(--jk-ink)]">{r.title}</p>
-                          <p className="mt-1 text-[14px] leading-6 text-[var(--jk-body)]">{r.description}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="px-1 text-sm text-[var(--jk-muted)]">Nothing at this level.</p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="jk-card jk-card-pad text-sm text-[var(--jk-muted)]">No recommendations were returned.</p>
-        )}
-      </section>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="mt-4 text-sm text-[var(--jk-muted)]">No critical issues were returned by the AI.</p>
+      )}
+    </section>
+  );
+}
 
-      {/* 30-day plan */}
-      <section className="jk-card jk-card-pad mt-4" aria-labelledby="seo-plan">
-        <div className="flex items-center gap-2">
-          <CalendarRange size={18} aria-hidden="true" className="text-[var(--agent-accent)]" />
-          <h4 id="seo-plan" className="text-xl font-bold tracking-tight text-[var(--jk-ink)]">
-            Your 30-day plan
-          </h4>
-        </div>
-        {audit.improvementPlan?.length ? (
-          <ol className="seo-timeline">
-            {audit.improvementPlan.map((week, index) => (
-              <li key={`${week.week}-${index}`} className="seo-week">
-                <span className="seo-week-dot" aria-hidden="true" />
-                <p className="seo-week-label">{week.week || `Week ${index + 1}`}</p>
-                <p className="mt-1 font-semibold text-[var(--jk-ink)]">{week.focus || "Improvement focus"}</p>
-                {week.actions?.length ? (
-                  <ul className="mt-3 grid gap-2">
-                    {week.actions.map((action, i) => (
-                      <li key={`${action}-${i}`} className="flex gap-2 text-[14px] leading-6 text-[var(--jk-body)]">
-                        <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--agent-accent)]" />
-                        {action}
+function Recommendations({ recs }: { recs: Recommendation[] }) {
+  return (
+    <section className="mt-4" aria-labelledby="seo-recs">
+      <h4 id="seo-recs" className="mb-3 text-xl font-bold tracking-tight text-[var(--jk-ink)]">
+        Recommendations by priority
+      </h4>
+      {recs?.length ? (
+        <div className="grid gap-4 lg:grid-cols-3">
+          {(["High", "Medium", "Low"] as Recommendation["priority"][]).map((priority) => {
+            const items = recs.filter((r) => r.priority === priority);
+            return (
+              <div key={priority} className={`seo-lane seo-lane--${priority.toLowerCase()}`}>
+                <p className="seo-lane-head">
+                  {priority} priority <span>{items.length}</span>
+                </p>
+                {items.length ? (
+                  <ul className="grid gap-2">
+                    {items.map((r, i) => (
+                      <li key={`${r.title}-${i}`} className="seo-rec">
+                        <p className="font-semibold text-[var(--jk-ink)]">{r.title}</p>
+                        <p className="mt-1 text-[14px] leading-6 text-[var(--jk-body)]">{r.description}</p>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="mt-3 text-sm text-[var(--jk-muted)]">No specific actions were returned for this week.</p>
+                  <p className="px-1 text-sm text-[var(--jk-muted)]">Nothing at this level.</p>
                 )}
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className="mt-4 text-sm text-[var(--jk-muted)]">No improvement roadmap was returned.</p>
-        )}
-      </section>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="jk-card jk-card-pad text-sm text-[var(--jk-muted)]">No recommendations were returned.</p>
+      )}
+    </section>
+  );
+}
 
-      <p className="jk-fineprint mx-auto mt-6 max-w-3xl text-center">
-        {audit.disclaimer ||
-          "SEO, UX, accessibility and conversion scores come from HTML analysis. Performance uses PageSpeed Insights when available."}
-      </p>
-    </article>
+function ImprovementPlan({ weeks }: { weeks: AuditData["improvementPlan"] }) {
+  return (
+    <section className="jk-card jk-card-pad mt-4" aria-labelledby="seo-plan">
+      <div className="flex items-center gap-2">
+        <CalendarRange size={18} aria-hidden="true" className="text-[var(--agent-accent)]" />
+        <h4 id="seo-plan" className="text-xl font-bold tracking-tight text-[var(--jk-ink)]">
+          Your 30-day plan
+        </h4>
+      </div>
+      {weeks?.length ? (
+        <ol className="seo-timeline">
+          {weeks.map((week, index) => (
+            <li key={`${week.week}-${index}`} className="seo-week">
+              <span className="seo-week-dot" aria-hidden="true" />
+              <p className="seo-week-label">{week.week || `Week ${index + 1}`}</p>
+              <p className="mt-1 font-semibold text-[var(--jk-ink)]">{week.focus || "Improvement focus"}</p>
+              {week.actions?.length ? (
+                <ul className="mt-3 grid gap-2">
+                  {week.actions.map((action, i) => (
+                    <li key={`${action}-${i}`} className="flex gap-2 text-[14px] leading-6 text-[var(--jk-body)]">
+                      <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--agent-accent)]" />
+                      {action}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-sm text-[var(--jk-muted)]">No specific actions were returned for this week.</p>
+              )}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="mt-4 text-sm text-[var(--jk-muted)]">No improvement roadmap was returned.</p>
+      )}
+    </section>
+  );
+}
+
+/** Everything after the preview (shown blurred behind the email form). */
+function LockedAudit({
+  criticalIssues,
+  recommendations,
+  improvementPlan,
+}: Pick<AuditData, "criticalIssues" | "recommendations" | "improvementPlan">) {
+  return (
+    <div>
+      {criticalIssues.length > 0 && <CriticalIssues issues={criticalIssues} offset={PREVIEW_ISSUES} />}
+      <Recommendations recs={recommendations} />
+      <ImprovementPlan weeks={improvementPlan} />
+    </div>
   );
 }

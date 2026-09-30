@@ -8,28 +8,34 @@
 
 import type { Metadata } from "next";
 import { getAgent, type AgentSlug } from "./agents";
-import { AI_ORIGIN, LOGO_URL, SITE_DESCRIPTION, SITE_NAME } from "./site";
+import { AI_ORIGIN, LOGO_URL, SITE_NAME } from "./site";
 
 const TEMPLATE = `%s | ${SITE_NAME}`;
 
+/** Home page title and description (the hub root layout's defaults). */
+export const HUB_TITLE = `AI Agents & Automation for Businesses | ${SITE_NAME}`;
+export const HUB_DESCRIPTION =
+  "Jaseir builds AI agents that qualify leads, book appointments and answer customers 24/7 from your own documents. See live demos and pricing.";
+
 /** Metadata for the dashboard (hub) root layout. */
 export function hubMetadata(): Metadata {
-  const title = `${SITE_NAME} — AI Agents That Turn Information Into Action`;
+  const url = `${AI_ORIGIN}/`;
   return {
     metadataBase: new URL(AI_ORIGIN),
-    title: { default: title, template: TEMPLATE },
-    description: SITE_DESCRIPTION,
+    title: { default: HUB_TITLE, template: TEMPLATE },
+    description: HUB_DESCRIPTION,
     applicationName: SITE_NAME,
+    alternates: { canonical: url },
     openGraph: {
       type: "website",
-      siteName: SITE_NAME,
+      siteName: "Jaseir",
       locale: "en_IN",
-      url: `${AI_ORIGIN}/`,
-      title,
-      description: SITE_DESCRIPTION,
+      url,
+      title: HUB_TITLE,
+      description: HUB_DESCRIPTION,
       images: [{ url: LOGO_URL, alt: "Jaseir" }],
     },
-    twitter: { card: "summary", title, description: SITE_DESCRIPTION },
+    twitter: { card: "summary_large_image", title: HUB_TITLE, description: HUB_DESCRIPTION },
   };
 }
 
