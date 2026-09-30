@@ -20,8 +20,11 @@ export const CONTACT_URL = "https://www.jaseir.com/contact/";
  */
 const BOOKING_LINK = "YOUR_BOOKING_LINK";
 
-/** Falls back to the contact page until BOOKING_LINK is a real URL, so buttons never 404. */
-export const BOOKING_URL = /^https?:\/\//.test(BOOKING_LINK) ? BOOKING_LINK : CONTACT_URL;
+/** Our own "Book a free call" form (dashboard /book-a-call/). */
+export const BOOK_CALL_PAGE_URL = "https://ai.jaseir.com/book-a-call/";
+
+/** A real calendar link once BOOKING_LINK is set; until then, the /book-a-call/ form. */
+export const BOOKING_URL = /^https?:\/\//.test(BOOKING_LINK) ? BOOKING_LINK : BOOK_CALL_PAGE_URL;
 
 /**
  * Google OAuth client ID for "Continue with Google" on the report form
