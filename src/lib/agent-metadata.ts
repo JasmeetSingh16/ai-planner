@@ -15,7 +15,7 @@ const TEMPLATE = `%s | ${SITE_NAME}`;
 /** Home page title and description (the hub root layout's defaults). */
 export const HUB_TITLE = `AI Agents & Automation for Businesses | ${SITE_NAME}`;
 export const HUB_DESCRIPTION =
-  "Jaseir builds AI agents that qualify leads, book appointments and answer customers 24/7 from your own documents. See live demos and pricing.";
+  "Jaseir builds AI agents that qualify leads, book appointments and answer customers 24/7 from your own documents. See live demos and try the free tools.";
 
 /** Metadata for the dashboard (hub) root layout. */
 export function hubMetadata(): Metadata {

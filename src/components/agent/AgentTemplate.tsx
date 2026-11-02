@@ -12,7 +12,7 @@ import { ArrowRight, ArrowUpRight, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import AgentIcon from "./AgentIcon";
 import { agentVars, getAgent, getRelatedAgents, type AgentSlug } from "../../lib/agents";
-import { agentHref, bookingLinkProps, type SiteZone } from "../../lib/site";
+import { AI_ORIGIN, ORGANIZATION_ID, agentHref, bookingLinkProps, toJsonLd, type SiteZone } from "../../lib/site";
 
 export const WORKSPACE_ID = "workspace";
 
@@ -21,8 +21,22 @@ export const WORKSPACE_ID = "workspace";
 /* ---------------------------------------------------------------- */
 
 export function AgentPage({ slug, children }: { slug: AgentSlug; children: ReactNode }) {
+  const agent = getAgent(slug);
+  // Every agent page is a free tool: SoftwareApplication with a 0 price.
+  const softwareJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: agent.name,
+    description: agent.seo.description,
+    url: `${AI_ORIGIN}${agent.path}`,
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
+    publisher: { "@id": ORGANIZATION_ID },
+  };
   return (
-    <main className="jk-agent" style={agentVars(getAgent(slug))} data-agent={slug}>
+    <main className="jk-agent" style={agentVars(agent)} data-agent={slug}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(softwareJsonLd) }} />
       {children}
     </main>
   );

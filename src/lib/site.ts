@@ -46,6 +46,21 @@ export const LOGO_LIGHT_URL = `${AI_ORIGIN}/logo-light.webp`;
 
 export const SITE_NAME = "Jaseir AI";
 
+/** Organization behind the site, referenced by @id from page-level JSON-LD. */
+export const ORGANIZATION_ID = `${MAIN_SITE_URL}#organization`;
+export const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "@id": ORGANIZATION_ID,
+  name: "Jaseir Technologies Pvt Ltd",
+  url: MAIN_SITE_URL,
+  logo: LOGO_PNG_URL,
+  sameAs: ["https://www.linkedin.com/company/jaseir"],
+};
+
+/** JSON-LD for a <script type="application/ld+json"> (escapes "<"). */
+export const toJsonLd = (data: object) => JSON.stringify(data).replace(/</g, "\\u003c");
+
 /**
  * Which app is rendering the header/footer.
  * - hub:   the dashboard app (home page, RAG pages, privacy)
@@ -81,7 +96,7 @@ export function agentHref(zone: SiteZone, agent: Agent): string {
 
 export const serviceLinks = [
   { label: "AI Automation & Agents", href: SERVICES_URL },
-  { label: "SEO & AI Search Visibility", href: "https://www.jaseir.com/ai-seo-services-in-india/" },
+  { label: "SEO Services", href: "https://www.jaseir.com/best-seo-company-in-india/" },
   { label: "CRM & Workflow Automation", href: "https://www.jaseir.com/crm-support/" },
   { label: "Web Development & Ecommerce", href: "https://www.jaseir.com/e-commerce-website-development/" },
 ];

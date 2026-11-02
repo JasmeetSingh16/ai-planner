@@ -162,11 +162,11 @@ export default function SiteHeader({ zone }: { zone: SiteZone }) {
           <a href={MAIN_SITE_URL} className="jk-logo">
             {dark ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={LOGO_LIGHT_URL} alt="Jaseir" width={132} height={52} />
+              <img src={LOGO_LIGHT_URL} alt="Jaseir Technologies logo" width={132} height={52} />
             ) : (
               <picture>
                 <source srcSet={logo.webp} type="image/webp" />
-                <img src={logo.png} alt="Jaseir" width={132} height={52} />
+                <img src={logo.png} alt="Jaseir Technologies logo" width={132} height={52} />
               </picture>
             )}
           </a>
@@ -303,7 +303,7 @@ export default function SiteHeader({ zone }: { zone: SiteZone }) {
         <div className="jk-mobile-top">
           <picture>
             <source srcSet={logo.webp} type="image/webp" />
-            <img src={logo.png} alt="" width={116} height={46} />
+            <img src={logo.png} alt="Jaseir Technologies logo" width={116} height={46} />
           </picture>
           <button
             ref={mobileCloseRef}

@@ -17,7 +17,9 @@ import {
   bookingLinkProps,
   companyLinks,
   hubHref,
+  organizationJsonLd,
   serviceLinks,
+  toJsonLd,
   type SiteZone,
 } from "../../lib/site";
 
@@ -36,6 +38,8 @@ export default function SiteFooter({ zone, cta = DEFAULT_CTA }: { zone: SiteZone
 
   return (
     <footer className="jk-footer">
+      {/* Site-wide Organization schema (the footer is on every page of every app). */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(organizationJsonLd) }} />
       <section
         className={`jk-cta-band${agent ? " jk-cta-band--agent" : ""}`}
         style={agent ? agentVars(agent) : undefined}
@@ -59,7 +63,7 @@ export default function SiteFooter({ zone, cta = DEFAULT_CTA }: { zone: SiteZone
         <div className="jk-footer-brand">
           <a href={MAIN_SITE_URL} className="jk-footer-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={LOGO_LIGHT_URL} alt="Jaseir" width={132} height={52} loading="lazy" />
+            <img src={LOGO_LIGHT_URL} alt="Jaseir Technologies logo" width={132} height={52} loading="lazy" />
           </a>
           <p>
             Jaseir AI builds practical AI agents that qualify leads, plan SEO and content, and answer
